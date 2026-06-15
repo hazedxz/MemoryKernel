@@ -1,15 +1,73 @@
-#ifndef _IMGUIMENU_
-#define _IMGUIMENU_
+/************************************************************************************************************************************
+*
+*
+* 007 HOOK
+* Code By: 007 + boy_scout
+* msn: david_bs@live.com
+* (c)2011
+* www.etalking.com.ar
+*
+*
+************************************************************************************************************************************/
 
-extern int MenuTab;
-extern float radiusy;
-extern bool changewindowfocus;
-extern GLuint texture_id[2048];
-extern bool keysmenu[256];
-extern bool modelmenu;
-extern bool bShowMenu;
-char* KeyEventChar(int Key);
-void DrawMenuWindow();
-bool SliderFloat(const char* label, float* v, float v_min, float v_max, const char* format = "%.1f");
+#ifndef MENU_H
+#define MENU_H
+
+//**********************************************************************************************************************************
+
+struct menu_entrys
+{
+	char title[200];
+	char content[200];
+	float* value_f;
+	float min_f;
+	float max_f;
+	float step_f;
+	int* value_i;
+	int min_i;
+	int max_i;
+	int step_i;
+};
+
+//**********************************************************************************************************************************
+
+class cMenu
+{
+private:
+
+	int AddEntry_FLOAT(int n, char title[200], char content[200], float* value, float min, float max, float step);
+	int AddEntry_INT(int n, char title[200], char content[200], int* value, int min, int max, int step);
+	int menuSelect;
+	int menuItems;
+	menu_entrys menuEntry[200];
+
+public:
+
+	void Init();
+	void Draw();
+	int KeyEvent(int keynum);
+	int Active;
+
+	int getMenuSelect(){
+		return menuSelect;
+	}
+	int getMenuItems(){
+		return menuItems;
+	}
+
+	menu_entrys getMenuEntry(int i){
+
+		return menuEntry[i];
+	}
+
+};
+
+//**********************************************************************************************************************************
+
+extern cMenu gMenu;
+
+//**********************************************************************************************************************************
 
 #endif
+
+//**********************************************************************************************************************************

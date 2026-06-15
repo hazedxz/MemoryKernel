@@ -1,318 +1,303 @@
+/************************************************************************************************************************************
+*
+*
+* 007 HOOK
+* Code By: 007 + boy_scout
+* msn: david_bs@live.com
+* (c)2011
+* www.etalking.com.ar
+*
+*
+************************************************************************************************************************************/
+
 #include "client.h"
 
+//**********************************************************************************************************************************
+
 CVARlist cvar;
-StringFinder names; 
-vector<Entry> entries;
 
-inline string getHackDirFile(const char* basename)
-{
-	if (strstr(basename, "..")) { return ":*?\\/<>\""; }
-	string ret = hackdir;
-	return (ret + basename);
-}
-
-void save_cvars(ofstream& ofs)
-{
-	ofs << "[CVAR]\n";
-
-	for (names.it_start(); names.it_running(); names.it_next())
-	{
-		Entry& r = entries[names.num];
-		ofs << names.str << "=" << *(float*)r.data << "\n";
-	}
-}
-
-void load_cvars(void)
-{
-	char cvar_f[500];
-	DWORD size = 500;
-
-	for (names.it_start(); names.it_running(); names.it_next())
-	{
-		Entry& r = entries[names.num];
-
-		GetPrivateProfileString("CVAR", names.str, "NULL", cvar_f, size, getHackDirFile("cvar.ini").c_str());
-		*(float*)r.data = atof(cvar_f);
-	}
-}
-
-bool fileExists(const char* filename)
-{
-	WIN32_FIND_DATA finddata;
-	HANDLE handle = FindFirstFile(filename, &finddata);
-	return (handle != INVALID_HANDLE_VALUE);
-}
-
-void AddCvarFloat(const char* name, void* data)
-{
-	int index = entries.size();
-	Entry tmp = { data };
-	entries.push_back(tmp);
-	names.add(name, index);
-}
+//**********************************************************************************************************************************
 
 void CVARlist::init()
 {
-	#define INITCVAR(name,value) AddCvarFloat(#name, &##name );##name=##value;
+	memset((char*)this, 0, sizeof(*this));
+	#define REGISTER_CVAR_FLOAT(name,defaultvalue) cmd.AddCvarFloat(#name, &##name );name=defaultvalue##f;
+	#define REGISTER_CVAR_INT(name,defaultvalue) cmd.AddCvarInt(#name, &##name );name=defaultvalue;
 
-	INITCVAR(rage_active, 0.0);
-	INITCVAR(rage_wall, 0.0);
-	INITCVAR(rage_fov, 45.0);
-	INITCVAR(rage_target_selection, 0.0);
-	INITCVAR(rage_perfect_silent, 0.0);
-	INITCVAR(rage_silent, 0.0); 
-	INITCVAR(rage_knife_attack, 1.0);
-	INITCVAR(rage_shield_attack, 0.0);
-	INITCVAR(rage_nospread_method, 0.0);
-	INITCVAR(rage_auto_fire, 0.0);
-	INITCVAR(rage_auto_fire_key, -1.0);
-	INITCVAR(rage_team, 0.0);
-	INITCVAR(rage_always_fire, 0.0);
-	INITCVAR(rage_draw_aim, 1.0);
+    //Used in source and cfg
+	REGISTER_CVAR_INT(cheatmode,0)
+	
+	//Aimbot	
+	REGISTER_CVAR_FLOAT(aim_fov,360.0)
+	REGISTER_CVAR_FLOAT(aim_distance,8142.0)
+	REGISTER_CVAR_INT(aim_team,0)
+	REGISTER_CVAR_INT(aim_thru,0)
+	REGISTER_CVAR_INT(aim_silent,1)
+	REGISTER_CVAR_INT(aim_auto,0)
+	REGISTER_CVAR_INT(aim_punch,1)
+	REGISTER_CVAR_INT(aim_enable,1)
+	REGISTER_CVAR_INT(aim_trigger,1)
+	REGISTER_CVAR_INT(aim_tspot,0)
+	REGISTER_CVAR_INT(aim_tfov,30)
+	REGISTER_CVAR_INT(aim_wall,0)
+	REGISTER_CVAR_INT(knf_attack,1)
+	REGISTER_CVAR_INT(knf_distattack,72)
+	REGISTER_CVAR_INT(knf_distattack2,64)
+	REGISTER_CVAR_INT(knf_aimfov,360)
+	REGISTER_CVAR_INT(knf_aim,1)
+	REGISTER_CVAR_FLOAT(aim_x_duck,5.0)
+	REGISTER_CVAR_FLOAT(aim_y_duck,2.0)
+	REGISTER_CVAR_FLOAT(aim_z_duck,25.0)
+	REGISTER_CVAR_FLOAT(aim_x_stand,5.0)
+	REGISTER_CVAR_FLOAT(aim_y_stand,2.0)
+	REGISTER_CVAR_FLOAT(aim_z_stand,22.0)
+	REGISTER_CVAR_FLOAT(aim_x_jump,2.0)
+	REGISTER_CVAR_FLOAT(aim_y_jump,5.0)
+	REGISTER_CVAR_FLOAT(aim_z_jump,13.0)
 
-	INITCVAR(aim_id_mode, 1.0);
+	//Aimbot extra
+	REGISTER_CVAR_INT(aim_glow,0)
+	REGISTER_CVAR_INT(crosshair,1)
+	REGISTER_CVAR_INT(antizoom,0)
+	REGISTER_CVAR_INT(spreadvar,1)
+	REGISTER_CVAR_FLOAT(recoil,0.0)
+	REGISTER_CVAR_INT(norecoil,0)
+	REGISTER_CVAR_INT(norecoil_visual,0)
+	REGISTER_CVAR_INT(norecoil_visible,0)
+	REGISTER_CVAR_INT(nospread,0) 
+	REGISTER_CVAR_INT(nospread_visible,0) 
+	REGISTER_CVAR_FLOAT(ftime,0.00)
+	REGISTER_CVAR_FLOAT(dtime,0.00)
+	REGISTER_CVAR_FLOAT(sdelay,0.00)
+	REGISTER_CVAR_FLOAT(rdelay,0.00)
 
-	for (unsigned int i = 1; i <= 30; i++)
-	{
-		if (i == 2 || i == 4 || i == 6 || i == 9 || i == 25 || i == 29) continue;
+	//pmEyePos Corrections
+	REGISTER_CVAR_FLOAT(height_correction,4.0)//PM_PlayerMove
+	REGISTER_CVAR_FLOAT(forward_correction,0.0)//PM_PlayerMove
+	REGISTER_CVAR_FLOAT(right_correction,-0.1)//PM_PlayerMove
+	REGISTER_CVAR_FLOAT(distance_correction,0.0)//CreateMove
+	REGISTER_CVAR_FLOAT(preshoot,0.0)//PM_PlayerMove
 
-		char str[256];
-		sprintf(str, "legit[%d].drawfov", i);
-		AddCvarFloat(str, &cvar.legit[i].drawfov); legit[i].drawfov = 0.0;
-		sprintf(str, "legit[%d].active", i);
-		AddCvarFloat(str, &cvar.legit[i].active); legit[i].active = 0.0;
-		sprintf(str, "legit[%d].speed", i);
-		AddCvarFloat(str, &cvar.legit[i].speed); legit[i].speed = 0.0;
-		sprintf(str, "legit[%d].speed_scale_fov", i);
-		AddCvarFloat(str, &cvar.legit[i].speed_scale_fov); legit[i].speed_scale_fov = 0.0;
-		sprintf(str, "legit[%d].reaction_time", i);
-		AddCvarFloat(str, &cvar.legit[i].reaction_time); legit[i].reaction_time = 0.0;
-		sprintf(str, "legit[%d].humanize", i);
-		AddCvarFloat(str, &cvar.legit[i].humanize); legit[i].humanize = 0.0;
-		sprintf(str, "legit[%d].recoil_compensation_pitch", i);
-		AddCvarFloat(str, &cvar.legit[i].recoil_compensation_pitch); legit[i].recoil_compensation_pitch = 0.0;
-		sprintf(str, "legit[%d].recoil_compensation_yaw", i);
-		AddCvarFloat(str, &cvar.legit[i].recoil_compensation_yaw); legit[i].recoil_compensation_yaw = 0.0;
-		sprintf(str, "legit[%d].recoil_compensation_after_shots_fired", i);
-		AddCvarFloat(str, &cvar.legit[i].recoil_compensation_after_shots_fired); legit[i].recoil_compensation_after_shots_fired = 0.0;
-		sprintf(str, "legit[%d].block_attack_after_kill", i);
-		AddCvarFloat(str, &cvar.legit[i].block_attack_after_kill); legit[i].block_attack_after_kill = 0.0;
-		sprintf(str, "legit[%d].accuracy", i);
-		AddCvarFloat(str, &cvar.legit[i].accuracy); legit[i].accuracy = 0.0;
-		sprintf(str, "legit[%d].perfect_silent", i);
-		AddCvarFloat(str, &cvar.legit[i].perfect_silent); legit[i].perfect_silent = 0.0;
-		sprintf(str, "legit[%d].fov", i);
-		AddCvarFloat(str, &cvar.legit[i].fov); legit[i].fov = 5.0;
-		sprintf(str, "legit[%d].speed_in_attack", i);
-		AddCvarFloat(str, &cvar.legit[i].speed_in_attack); legit[i].speed_in_attack = 100;
-		sprintf(str, "legit[%d].trigger_active", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_active); legit[i].trigger_active = 0.0;
-		sprintf(str, "legit[%d].trigger_wall", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_wall); legit[i].trigger_wall = 0.0;
-		sprintf(str, "legit[%d].trigger_accuracy", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_accuracy); legit[i].trigger_accuracy = 0.0;
-		sprintf(str, "legit[%d].trigger_delay_shot", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_delay_shot); legit[i].trigger_delay_shot = 0.0;
-		sprintf(str, "legit[%d].trigger_shot_count", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_shot_count); legit[i].trigger_shot_count = 1.0;
-		sprintf(str, "legit[%d].trigger_shot_type", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_shot_type); legit[i].trigger_shot_type = 0.0;
-		sprintf(str, "legit[%d].trigger_random_max", i);
-		AddCvarFloat(str, &cvar.legit[i].trigger_random_max); legit[i].trigger_random_max = 3.0;
-	}
+	//Speed
+	REGISTER_CVAR_FLOAT(speed,1.0)
+	REGISTER_CVAR_FLOAT(aspeed,0.0)
+	REGISTER_CVAR_INT(rspeed,1) //reload on off
 
-	for (unsigned int i = 1; i <= 30; i++)
-	{
-		if (i == 2 || i == 4 || i == 6 || i == 9 || i == 25 || i == 29) continue;
+	//wavspeed
+	REGISTER_CVAR_FLOAT(wavspeed,1.0)
+	REGISTER_CVAR_INT(fps_helper,0)
 
-		char str[256];
-		sprintf(str, "rage[%d].rage_delay_shot", i);
-		AddCvarFloat(str, &cvar.rage[i].rage_delay_shot); rage[i].rage_delay_shot = 0.0;
-		sprintf(str, "rage[%d].rage_shot_count", i);
-		AddCvarFloat(str, &cvar.rage[i].rage_shot_count); rage[i].rage_shot_count = 1.0;
-		sprintf(str, "rage[%d].rage_shot_type", i);
-		AddCvarFloat(str, &cvar.rage[i].rage_shot_type); rage[i].rage_shot_type = 0.0;
-		sprintf(str, "rage[%d].rage_random_max", i);
-		AddCvarFloat(str, &cvar.rage[i].rage_random_max); rage[i].rage_random_max = 3.0;
-	}
+	//Opengl
+	REGISTER_CVAR_INT(skeleton,0)
+	REGISTER_CVAR_INT(chams,0)
+	REGISTER_CVAR_INT(chamswall,0)
+	REGISTER_CVAR_INT(chamsglow,0)
+	REGISTER_CVAR_INT(reloadmeter,0)
+	REGISTER_CVAR_INT(barrel,0)
+	REGISTER_CVAR_INT(blood,0)
+	REGISTER_CVAR_INT(nosky,0)
 
-	INITCVAR(legit_trigger_only_zoom, 0.0);
-	INITCVAR(legit_trigger_team, 0.0);
-	INITCVAR(legit_trigger_key, -1.0);
-	INITCVAR(legit_trigger_draw_aim, 1.0);
+	//Info
+	REGISTER_CVAR_INT(info,1)
+	REGISTER_CVAR_INT(myhud,0)
+	REGISTER_CVAR_INT(infobars,0)
 
-	INITCVAR(legit_autoscope, 0.0);
-	INITCVAR(legit_team, 0.0);
-	INITCVAR(legit_key, -1.0);
-	INITCVAR(legit_draw_aim, 1.0);
+	//ESP
+	REGISTER_CVAR_INT(name,1)
+	REGISTER_CVAR_INT(espteam,0)
+	REGISTER_CVAR_INT(weapon,0) 
+	REGISTER_CVAR_INT(sequence,0)
+	REGISTER_CVAR_INT(playerinfo,0)
+	REGISTER_CVAR_INT(entesp,0)
+	REGISTER_CVAR_INT(esptype,0)
 
-	INITCVAR(menu_legit_global_section, 0.0);
-	INITCVAR(menu_legit_sub_section, 0.0);
-	INITCVAR(menu_rage_global_section, 0.0);
-	INITCVAR(menu_rage_sub_section, 0.0);
+	//Sound
+	REGISTER_CVAR_INT(soundesp,1)
+	REGISTER_CVAR_INT(soundtol,200)
+	REGISTER_CVAR_FLOAT(soundtime,1.0)
+	REGISTER_CVAR_INT(killsound,0)
 
-	INITCVAR(knifebot_active, 0.0);
-	INITCVAR(knifebot_attack, 1.0);
-	INITCVAR(knifebot_attack_distance, 72.0);
-	INITCVAR(knifebot_attack2_distance, 64.0);
-	INITCVAR(knifebot_silent, 0.0);
-	INITCVAR(knifebot_perfect_silent, 0.0);
-	INITCVAR(knifebot_fov, 45.0);
-	INITCVAR(knifebot_team, 0.0);
-	INITCVAR(knifebot_draw_aim, 1.0);
+	//Radar
+	REGISTER_CVAR_INT(radar,1)
+	REGISTER_CVAR_INT(miniradar,1)
+    REGISTER_CVAR_INT(radar_size,75)//55
+    REGISTER_CVAR_INT(miniradar_size,80)//55
+	REGISTER_CVAR_INT(radar_x,102)
+	REGISTER_CVAR_INT(radar_y,108)
+	REGISTER_CVAR_FLOAT(radar_range,2500.0)
+	REGISTER_CVAR_INT(radarpoints,1)
 
-	INITCVAR(bypass_trace_rage, 1.0);
-	INITCVAR(bypass_trace_legit, 1.0);
-	INITCVAR(bypass_trace_trigger, 1.0);
-	INITCVAR(bypass_trace_knife, 1.0);
+	//Optimizations
+	REGISTER_CVAR_INT(noall,0)
+	REGISTER_CVAR_INT(norefresh,0)
+	
+	//View
+	REGISTER_CVAR_INT(smallview,0)
+	REGISTER_CVAR_INT(view_width,160)//200
+	REGISTER_CVAR_INT(view_height,120)//150
 
-	INITCVAR(aa_pitch, 0.0);
-	INITCVAR(aa_edge, 0.0);
-	INITCVAR(aa_yaw, 0.0);
-	INITCVAR(aa_yaw_static, 0.0);
-	INITCVAR(aa_yaw_while_running, 0.0);
-	INITCVAR(aa_roll, 0.0);
-	INITCVAR(aa_roll_static, 0.0);
-	INITCVAR(aa_roll_while_running, 0.0);
+	//FX
+	REGISTER_CVAR_INT(chase,0)
+	REGISTER_CVAR_FLOAT(chaseoffs,0.0)//se pone a cero si chase es 0
+	REGISTER_CVAR_INT(noflash,0)
+	REGISTER_CVAR_INT(nosmoke,0)
 
-	INITCVAR(fakelag_active, 0.0);
-	INITCVAR(fakelag_while_shooting, 0.0);
-	INITCVAR(fakelag_move, 2.0);
-	INITCVAR(fakelag_type, 2.0);
-	INITCVAR(fakelag_limit, 0.0);
-	INITCVAR(fakelag_variance, 0.0);
+	//Way
+	REGISTER_CVAR_INT(rush,0)
+	REGISTER_CVAR_INT(kniferush,0)
+	REGISTER_CVAR_INT(knifeattackdist,2000)
+	
+	//Direction
+	REGISTER_CVAR_INT(auto_jump,1) 
+	REGISTER_CVAR_INT(jump_dist,30)
+	REGISTER_CVAR_INT(auto_br,1) 
+	REGISTER_CVAR_FLOAT(rush_step,500.0)
+	REGISTER_CVAR_INT(action_step,50)
+	REGISTER_CVAR_INT(direction_step,15.0)
+	REGISTER_CVAR_INT(auto_direction,1)
 
-	INITCVAR(snapshot_memory, 0.0);
-	INITCVAR(snapshot_time, 10.0);
+	//Idhook
+	REGISTER_CVAR_INT(id_mode,1)
 
-	INITCVAR(misc_quick_change, 0.0);
-	INITCVAR(misc_quick_change_key, -1.0);
-	INITCVAR(misc_wav_speed, 1.0);
+	//GYJ route
+    REGISTER_CVAR_INT(route_draw,2)
+    REGISTER_CVAR_INT(route_mode,1)
+	REGISTER_CVAR_FLOAT(routefinddist,150.0)
+    REGISTER_CVAR_INT(autoroute,0)
+	REGISTER_CVAR_FLOAT(routedist,100.0)
 
-	INITCVAR(kz_strafe_psilent, 0.0);
-	INITCVAR(kz_strafe, 0.0);
-	INITCVAR(kz_fast_run, 0.0);
-	INITCVAR(kz_ground_strafe, 0.0);
-	INITCVAR(kz_bhop, 0.0);
-	INITCVAR(kz_bhop_double, 0.0);
-	INITCVAR(kz_bhop_triple, 0.0);
-	INITCVAR(kz_jump_bug, 0.0);
-	INITCVAR(kz_jump_bug_auto, 0.0);
-	INITCVAR(kz_show_kz, 0.0);
-	INITCVAR(kz_display_time, 10.0);
-	INITCVAR(kz_strafe_key, -1.0);
-	INITCVAR(kz_fastrun_key, -1.0);
-	INITCVAR(kz_ground_strafe_key, -1.0);
-	INITCVAR(kz_bhop_key, -1.0);
-	INITCVAR(kz_jumpbug_key, -1.0);
+	//strafe main
+	REGISTER_CVAR_INT(strafehack,0) //1-2
+	REGISTER_CVAR_INT(strafeautodir,0)
+	REGISTER_CVAR_INT(groundstrafe,0) //1-2
+	REGISTER_CVAR_INT(bhop,0) //1-2
+	REGISTER_CVAR_INT(jumpbug,0) //1-2
+	REGISTER_CVAR_INT(fastrun,0) //1-2
+	REGISTER_CVAR_INT(strafe_helper,0)
+	REGISTER_CVAR_INT(slowdown,0)
+	REGISTER_CVAR_INT(show_kz,0)
 
-	INITCVAR(route_activate, 0.0);
-	INITCVAR(route_mode, 1.0);
-	INITCVAR(route_auto, 0.0);
-	INITCVAR(route_jump, 1.0);
-	INITCVAR(route_jump_step, 2.0);
-	INITCVAR(route_direction, 1.0);
-	INITCVAR(route_direction_step, 4.0);
-	INITCVAR(route_draw_visual, 0.0);
-	INITCVAR(route_draw, 1.0);
-	INITCVAR(route_rush_key, -1.0);
+	//strafe settings
+	REGISTER_CVAR_INT(strafe_dir,1) // 1-4
+	REGISTER_CVAR_INT(strafe_crazy,0)
+	REGISTER_CVAR_INT(strafe_invisible,1)
+	REGISTER_CVAR_INT(strafe_speed,69)
+	REGISTER_CVAR_FLOAT(strafe_sidemove,437.8928)
+	REGISTER_CVAR_INT(strafe_angle,30)
 
-	INITCVAR(visual_model_hitbox, 0.0);
-	INITCVAR(visual_name, 1.0);
-	INITCVAR(visual_name_world, 0.0);
-	INITCVAR(visual_model, 0.0);
-	INITCVAR(visual_model_world, 0.0);
-	INITCVAR(visual_weapon, 0.0);
-	INITCVAR(visual_reload_bar, 0.0);
-	INITCVAR(visual_box, 0.0);
-	INITCVAR(visual_box_world, 0.0);
-	INITCVAR(visual_health, 0.0);
-	INITCVAR(visual_visual_team, 1.0);
-	INITCVAR(visual_sound_index, 1.0);
-	INITCVAR(visual_sound_no_index, 1.0);
-	INITCVAR(visual_sound_steps, 0.0);
-	INITCVAR(visual_idhook_only, 0.0);
-	INITCVAR(visual_rem_flash, 0.0);
-	INITCVAR(visual_chase_cam, 0.0);
-	INITCVAR(visual_chase_back, 100.0);
-	INITCVAR(visual_chase_up, 16.0);
-	INITCVAR(visual_grenade_trajectory, 0.0);
-	INITCVAR(visual_crosshair, 0.0);
-	INITCVAR(visual_vip, 0.0);
-	INITCVAR(visual_weapon_local, 0.0);
-	INITCVAR(visual_lightmap, 0.0);
-	INITCVAR(visual_sky, 0.0);
-	INITCVAR(visual_skins_player, 0.0);
-	INITCVAR(visual_skins_player_weapon, 0.0);
-	INITCVAR(visual_skins_player_backweapon, 0.0);
-	INITCVAR(visual_skins_backpack, 0.0);
-	INITCVAR(visual_skins_thighpack, 0.0);
-	INITCVAR(visual_skins_viewmodel, 0.0);
-	INITCVAR(visual_skins_viewmodel_hands, 0.0);
-	INITCVAR(visual_skins_viewmodel_nohands, 0.0);
-	INITCVAR(visual_skins_world, 0.0);
-	INITCVAR(visual_skins_bullet_shell, 0.0);
-	INITCVAR(visual_skins_wall, 0.0);
-	INITCVAR(visual_skins_chicken, 0.0);
-	INITCVAR(visual_spawn_points, 0.0);
-	INITCVAR(visual_spawn_scan, 0.0);
-	INITCVAR(visual_spawn_num, 0.0);
-	INITCVAR(visual_viewmodel_fov, 0.0);
-	INITCVAR(visual_lambert, 0.0);
+	REGISTER_CVAR_INT(fastrun_nsd,1)
 
-	INITCVAR(skeleton_player_bone, 0.0);
-	INITCVAR(skeleton_player_hitbox, 0.0);
-	INITCVAR(skeleton_player_weapon_bone, 0.0);
-	INITCVAR(skeleton_player_weapon_hitbox, 0.0);
-	INITCVAR(skeleton_view_model_bone, 0.0);
-	INITCVAR(skeleton_view_model_hitbox, 0.0);
-	INITCVAR(skeleton_world_bone, 0.0);
-	INITCVAR(skeleton_world_hitbox, 0.0);
+	REGISTER_CVAR_INT(gstrafe_standup,1)
+	REGISTER_CVAR_INT(gstrafe_bhop,1)
+	REGISTER_CVAR_FLOAT(gstrafe_nsd,0.0)
 
-	INITCVAR(gui_key, -1.0);
-	INITCVAR(gui_chat, 0.0);
-	INITCVAR(gui_chat_key, -1.0);
-	INITCVAR(gui_chat_key_team, -1.0);
+	REGISTER_CVAR_INT(bhop_nsd,1)
+	REGISTER_CVAR_INT(bhop_autoduck,1)
+	REGISTER_CVAR_INT(bhop_cnt_rand_min,0)
+	REGISTER_CVAR_INT(bhop_cnt_rand_max,12)
+	REGISTER_CVAR_INT(bhop_cnt_rand,1)
+	REGISTER_CVAR_INT(bhop_cnt,4)
 
-	INITCVAR(radio_kill_sound, 0.0);
-	INITCVAR(radio_kill_volume, 15.0);
+	REGISTER_CVAR_INT(jumpbugauto,0)
+	REGISTER_CVAR_INT(jumpbugslow,100)
+	REGISTER_CVAR_INT(jumpbugslowspeed,1)
 
-	INITCVAR(steamid, 0.0); 
-	INITCVAR(id1, 1.0);
-	INITCVAR(id2, 2.0);
-	INITCVAR(id3, 3.0);
-	INITCVAR(id4, 4.0);
-	INITCVAR(id5, 5.0);
-	INITCVAR(id6, 6.0);
-	INITCVAR(id7, 7.0);
+	REGISTER_CVAR_INT(strafe_helper_boost,0)
+	REGISTER_CVAR_INT(strafe_helper_add_strafe,1)
+	REGISTER_CVAR_INT(strafe_helper_max_strafe_rand,0)
+	REGISTER_CVAR_INT(strafe_helper_max_strafe_min,3)
+	REGISTER_CVAR_INT(strafe_helper_max_strafe_max,6)
+	REGISTER_CVAR_INT(strafe_helper_max_strafe,6)
+	REGISTER_CVAR_INT(strafe_helper_main,30)
+	REGISTER_CVAR_INT(strafe_helper_move_rand,1)
+	REGISTER_CVAR_INT(strafe_helper_move_rand_min,50)
+	REGISTER_CVAR_INT(strafe_helper_move_rand_max,400)
+	REGISTER_CVAR_INT(strafe_helper_move,400)
 
-	INITCVAR(radar, 0.0);
-	INITCVAR(radar_zoom, 5.0);
-	INITCVAR(radar_point_size, 5.0);
-	INITCVAR(radar_pos_x, 100.0);
-	INITCVAR(radar_pos_y, 100.0);
-	INITCVAR(radar_size_x, 150.0);
-	INITCVAR(radar_size_y, 150.0);
+	REGISTER_CVAR_INT(antiaimpitch,0) //1-6
+	REGISTER_CVAR_INT(antiaimyaw,0) //1-9
+	
+	REGISTER_CVAR_FLOAT(test,0.0)
+}	
 
-	INITCVAR(model_preview, 0);
+//**********************************************************************************************************************************
 
-	INITCVAR(chams_view_model, 0.0);
-	INITCVAR(chams_player, 0.0);
-	INITCVAR(chams_player_wall, 0.0);
-	INITCVAR(chams_world, 0.0);
-	INITCVAR(chams_world_wall, 0.0);
-}
-
-void SaveCvar()
+void HlEngineCommand(const char* command)
 {
-	ofstream ofs(getHackDirFile("cvar.ini").c_str());
-	save_cvars(ofs);
-	ofs.close();
+	if(!gEngfuncs.pfnClientCmd) { return; }
+	gEngfuncs.pfnClientCmd( const_cast<char*>(command) );
 }
 
-void LoadCvar()
+//**********************************************************************************************************************************
+
+void HandleCvarInt(char* name, int* value)
 {
-	cvar.init();
-	if (fileExists(getHackDirFile("cvar.ini").c_str()))
-		load_cvars();
+	char* arg1 = cmd.argC(1); 
+	if (!strcmp(arg1,"change"))
+	{
+		if(*value) *value=0; 
+		else *value=1; 
+		if(cvar.info||gMenu.Active){ 
+			sprintf(gHudMessage,"%s changed to %d", name, *value );
+			gHudTimer.countdown(3);}
+		return;
+	}
+	if (!strcmp(arg1,"up")){*value += cmd.argI(2);return;}
+	if (!strcmp(arg1,"down")){*value -= cmd.argI(2);return;}
+	if (!strcmp(arg1,"hide")){*value = cmd.argI(2);return;}
+	if (!*arg1)
+	{
+		Con_Echo( "CVAR &w%s&a = %i\n",name,*value); 
+		return;
+	}
+	*value = cmd.argI(1);
 }
+
+//**********************************************************************************************************************************
+
+void HandleCvarFloat(char* name, float* value)
+{
+	char* arg1 = cmd.argC(1);  
+	if (!strcmp(arg1,"change"))
+	{
+		if(*value) *value=0; 
+		else *value=1;
+		if(cvar.info||gMenu.Active){ 
+			sprintf(gHudMessage,"%s changed to %f", name, *value );
+			gHudTimer.countdown(3); }
+		return;
+	}
+	if (!strcmp(arg1,"up")){*value += cmd.argF(2);return;}
+	if (!strcmp(arg1,"down")){*value -= cmd.argF(2);return;}
+	if (!strcmp(arg1,"hide")){*value = cmd.argI(2);return;}
+	if (!*arg1)
+	{
+		Con_Echo( "CVAR &w%s&a = %f\n",name,*value);
+		//Con_Echo( "CVAR &w%s&r = %f\n",name,*value); 
+		return;
+	}
+	*value = cmd.argF(1);
+}
+
+//**********************************************************************************************************************************
+
+bool isHlCvar(char* name)
+{
+	if(!gEngfuncs.pfnGetCvarPointer) { return false; }
+	cvar_s* test = gEngfuncs.pfnGetCvarPointer(name);
+	return (test!=NULL);
+}
+
+//**********************************************************************************************************************************
+
+bool HandleHlCvar(char* name)
+{
+	if(!gEngfuncs.pfnGetCvarPointer) { return false; }
+	cvar_s* ptr = gEngfuncs.pfnGetCvarPointer(name);
+	if(!ptr) { return false; }
+	HandleCvarFloat(name,&ptr->value);
+	return true;
+}
+
+//**********************************************************************************************************************************
+

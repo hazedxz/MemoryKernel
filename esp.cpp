@@ -1,627 +1,635 @@
+/************************************************************************************************************************************
+*
+*
+* 007 HOOK
+* Code By: 007 + boy_scout
+* msn: david_bs@live.com
+* (c)2011
+* www.etalking.com.ar
+*
+*
+************************************************************************************************************************************/
+
 #include "client.h"
 
-deque<playeresp_t> PlayerEsp;
-deque<worldesp_t> WorldEsp;
-deque<worldespprev_t> WorldEspPrev;
+//**********************************************************************************************************************************
 
-void Box(float x, float y, float w, float h, ImU32 team)
+int Cstrike_SequenceInfo[] = 
 {
-	if (!cvar.visual_box) return;
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x, y }, { x + w, y + h }, team);
+	0,	0,	0,	0,	0,	0,	0,	0,	0,	0, // 0..9   
+	0,	1,	2,	0,	1,	2,	0,	1,	2,	0, // 10..19 
+	1,	2,	0,	1,	1,	2,	0,	1,	1,	2, // 20..29 
+	0,	1,	2,	0,	1,	2,	0,	1,	2,	0, // 30..39 
+	1,	2,	0,	1,	2,	0,	1,	2,	0,	1, // 40..49 
+	2,	0,	1,	2,	0,	0,	0,	8,	0,	8, // 50..59 
+	0, 16,	0, 16,	0,	0,	1,	1,	2,	0, // 60..69 
+	1,	1,	2,	0,	1,	0,	1,	0,	1,	2, // 70..79 
+	0,	1,	2, 	32, 40, 32, 40, 32, 32, 32, // 80..89
+   	33, 64, 33, 34, 64, 65, 34, 32, 32, 4, // 90..99
+	4,	4,	4,	4,	4,	4,	4,	4,	4,	4, // 100..109
+	4                                      	// 110
+};
+
+//********************************************************************************************************************************** 
+
+int getSeqInfo(int ax)
+{
+	return Cstrike_SequenceInfo[vPlayers[ax].getEnt()->curstate.sequence];
 }
 
-void Health(int id, float x, float y, float h)
-{
-	if (!cvar.visual_health) return;
-	int hp = g_Player[id].iHealth;
-	if (hp < 10) hp = 10;
-	else if (hp > 100) hp = 100;
+//**********************************************************************************************************************************
 
-	for (unsigned int i = 0; i < 10; i++)
+void DrawEntEsp(void)
+{
+	if(cvar.rush) return;
+
+ 	cl_entity_s * pMe = gEngfuncs.GetLocalPlayer();
+	for(int i=1023; i>0; i--)
 	{
-		if (hp > 99 - (10 * i))
-			ImGui::GetCurrentWindow()->DrawList->AddRect({ x - 7, y + h / 100.f * 10.f * i }, { x - 1, y + h / 100.f * 10.f * (i + 1) }, ImColor(0.1f * (i + 1), 1.f - (0.1f * i), 0.0f, 1.0f));
-	}
-}
-
-void Vip(int id, float x, float y, float w)
-{
-	if (!cvar.visual_vip || !g_Player[id].bVip) return;
-	ImGui::GetCurrentWindow()->DrawList->AddImage((GLuint*)texture_id[VIP], { x, y - w / 2 }, { x + w, y });
-}
-
-bool Reload(int sequence, float x, float y, ImU32 team, ImU32 green)
-{
-	int seqinfo = Cstrike_SequenceInfo[sequence];
-	if (!cvar.visual_reload_bar || seqinfo != 2) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize("Reloading", NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, team);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, green, "Reloading");
-	return true;
-}
-
-bool Name(int id, float x, float y, ImU32 team, ImU32 white)
-{
-	if (!cvar.visual_name) return false;
-	player_info_s* player = g_Studio.PlayerInfo(id - 1);
-	if (!player || !(lstrlenA(player->name) > 0)) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize(player->name, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, team);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, player->name);
-	return true;
-}
-
-bool Model(char* model, float x, float y, ImU32 team, ImU32 white)
-{
-	if (!cvar.visual_model) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize(model, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, team);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, model);
-	return true;
-}
-
-bool Weapon(int weaponmodel, float x, float y, ImU32 team, ImU32 white)
-{
-	model_s* mdl = g_Studio.GetModelByIndex(weaponmodel);
-	if (!cvar.visual_weapon || !mdl) return false;
-	char weapon[256];
-	sprintf(weapon, getfilename(mdl->name).c_str() + 2);
-	float label_size = IM_ROUND(ImGui::CalcTextSize(weapon, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, team);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, weapon);
-	return true;
-}
-
-void HealthDummy(float x, float y, float h)
-{
-	if (!cvar.visual_health) return;
-	int hp = hp = 100;
-
-	for (unsigned int i = 0; i < 10; i++)
-	{
-		if (hp > 99 - (10 * i))
-			ImGui::GetCurrentWindow()->DrawList->AddRect({ x - 7, y + h / 100.f * 10.f * i }, { x - 1, y + h / 100.f * 10.f * (i + 1) }, ImColor(0.1f * (i + 1), 1.f - (0.1f * i), 0.0f, 1.0f));
-	}
-}
-
-bool VipDummy(float x, float y, float w)
-{
-	if (!cvar.visual_vip) return false;
-	ImGui::GetCurrentWindow()->DrawList->AddImage((GLuint*)texture_id[VIP], { x, y - w / 2 }, { x + w, y });
-	return true;
-}
-
-bool ReloadDummy(float x, float y, ImU32 wheel, ImU32 green)
-{
-	if (!cvar.visual_reload_bar) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize("Reloading", NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, wheel);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, green, "Reloading");
-	return true;
-}
-
-bool NameDummy(float x, float y, ImU32 Wheel, ImU32 white)
-{
-	if (!cvar.visual_name) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize("Name", NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, Wheel);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, "Name");
-	return true;
-}
-
-bool ModelDummy(float x, float y, ImU32 Wheel, ImU32 white)
-{
-	if (!cvar.visual_model) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize("Model", NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, Wheel);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, "Model");
-	return true;
-}
-
-bool WeaponDummy(float x, float y, ImU32 Wheel, ImU32 white)
-{
-	if (!cvar.visual_weapon) return false;
-	float label_size = IM_ROUND(ImGui::CalcTextSize("Weapon", NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, Wheel);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, "Weapon");
-	return true;
-}
-
-bool bCalcScreen(playeresp_t Esp, float& x, float& y, float& w, float& h, float& xo, float& yo)
-{
-	float vOrigin[2];
-	if (WorldToScreen(Esp.origin, vOrigin))
-	{
-		xo = IM_ROUND(vOrigin[0]);
-		yo = IM_ROUND(vOrigin[1]);
-		float x0 = vOrigin[0], x1 = vOrigin[0], y0 = vOrigin[1], y1 = vOrigin[1];
-		for (esphitbox_t Hitbox : Esp.PlayerEspHitbox)
+		cl_entity_s * pEnt = gEngfuncs.GetEntityByIndex(i);
+		ColorEntry * clr;
+		if(pEnt && (pEnt->curstate.messagenum+10 > pMe->curstate.messagenum) && pEnt->model && pEnt->model->name && !pEnt->player)
 		{
-			for (unsigned int i = 0; i < 8; i++)
+			float tmp[2];
+			char mdl[64];
+			char *wpn = NULL;
+
+			strncpy(mdl, pEnt->model->name, 64);
+			wpn = mdl;
+
+			if(CalcScreen(pEnt->origin,tmp))
 			{
-				float vHitbox[2];
-				if (WorldToScreen(Hitbox.HitboxMulti[i], vHitbox))
+
+				float distance = GetDistanceFrom(pEnt->origin)/22.0f;
+				extern float fCurrentFOV;
+				int   boxradius = (300.0*90.0) / (distance*fCurrentFOV);
+				BOUND_VALUE(boxradius,1,200);
+
+				float org[3];
+				org[0]=pEnt->origin.x;
+				org[1]=pEnt->origin.y;
+				org[2]=pEnt->origin.z;
+
+				if(wpn && strstr(wpn, /*w_*/XorStr<0x52,3,0xA2204F51>("\x25\x0C"+0xA2204F51).s))
 				{
-					x0 = min(x0, vHitbox[0]);
-					x1 = max(x1, vHitbox[0]);
-					y0 = min(y0, vHitbox[1]);
-					y1 = max(y1, vHitbox[1]);
+					wpn += 9;
+					wpn[strlen(wpn)-4] = 0;
+					clr = colorList.get(29);
+
+					if(strstr(wpn,/*thighpack*/XorStr<0x6F,10,0x0CA9EFF6>("\x1B\x18\x18\x15\x1B\x04\x14\x15\x1C"+0x0CA9EFF6).s))
+					{
+						gDrawBoxAtScreenXY(tmp[0],tmp[1],clr->r,clr->g,clr->b,clr->a,boxradius);
+						DrawConStringCenter(tmp[0],tmp[1],clr->r,clr->g,clr->b,/*Defusal-Kit*/XorStr<0x96,12,0x322C9107>("\xD2\xF2\xFE\xEC\xE9\xFA\xF0\xB0\xD5\xF6\xD4"+0x322C9107).s);							
+					}
+					else if(strstr(wpn,/*backpack*/XorStr<0x6D,9,0x06AC5324>("\x0F\x0F\x0C\x1B\x01\x13\x10\x1F"+0x06AC5324).s))
+					{
+						gDrawBoxAtScreenXY(tmp[0],tmp[1],clr->r,clr->g,clr->b,clr->a,boxradius);
+						DrawConStringCenter(tmp[0],tmp[1],clr->r,clr->g,clr->b,/*C4 Dropped*/XorStr<0x43,11,0x7282C5B9>("\x00\x70\x65\x02\x35\x27\x39\x3A\x2E\x28"+0x7282C5B9).s);							
+					}
+					else if(strstr(wpn,/*c4*/XorStr<0xF1,3,0x2BB8BC8C>("\x92\xC6"+0x2BB8BC8C).s))
+					{
+						gDrawBoxAtScreenXY(tmp[0],tmp[1],clr->r,clr->g,clr->b,clr->a,boxradius);
+						DrawConStringCenter(tmp[0],tmp[1],clr->r,clr->g,clr->b,/*C4 Activated*/XorStr<0x41,13,0xCEC6CF2A>("\x02\x76\x63\x05\x26\x32\x2E\x3E\x28\x3E\x2E\x28"+0xCEC6CF2A).s);	
+					}
+					else
+					{
+						DrawConStringCenter(tmp[0],tmp[1],clr->r,clr->g,clr->b,wpn);
+					}
+				}
+				else if(wpn && (strstr(wpn, /*hostage*/XorStr<0xBF,8,0x834F4B39>("\xD7\xAF\xB2\xB6\xA2\xA3\xA0"+0x834F4B39).s) || (strstr(wpn, /*scientist*/XorStr<0x87,10,0xD8179B2B>("\xF4\xEB\xE0\xEF\xE5\xF8\xE4\xFD\xFB"+0xD8179B2B).s))))
+				{
+					vec3_t forward, right, up, entOrg ;
+					
+					wpn += 7;
+					wpn[strlen(wpn)-4] = 0;
+					
+					VectorCopy(pEnt->origin, entOrg);
+					gEngfuncs.pfnAngleVectors(pEnt->angles, forward, right, up);
+					entOrg = entOrg + up * 40;
+					if(CalcScreen(entOrg, tmp))
+					{
+						gDrawBoxAtScreenXY(tmp[0],tmp[1],clr->r,clr->g,clr->b,clr->a,boxradius);
+						DrawConStringCenter(tmp[0],tmp[1],clr->r,clr->g,clr->b,wpn);
+					}
 				}
 			}
 		}
-		x = IM_ROUND(x0);
-		y = IM_ROUND(y0);
-		w = IM_ROUND(x1) - IM_ROUND(x0) + 1;
-		h = IM_ROUND(y1) - IM_ROUND(y0) + 1;
-		return true;
-	}
-	return false;
-}
-
-void DrawPlayerEsp()
-{
-	for (playeresp_t Esp : PlayerEsp)
-	{
-		if (Esp.dummy)
-			continue;
-		if (cvar.visual_idhook_only && idhook.FirstKillPlayer[Esp.index] != 1)
-			continue;
-		if (!cvar.visual_visual_team && g_Player[Esp.index].iTeam == g_Local.iTeam)
-			continue;
-		if (!bAlive(Esp.index))
-			continue;
-		float x, y, w, h, xo, yo;
-		if (bCalcScreen(Esp, x, y, w, h, xo, yo))
-		{
-			Box(x, y, w, h, Team(Esp.index));
-			Health(Esp.index, x, y, h);
-			if (Reload(Esp.sequence, xo, y, Team(Esp.index), Green()))
-				y -= 15;
-			if (Name(Esp.index, xo, y, Team(Esp.index), White()))
-				y -= 15;
-			if (Model(Esp.model, xo, y, Team(Esp.index), White()))
-				y -= 15;
-			if (Weapon(Esp.weaponmodel, xo, y, Team(Esp.index), White()))
-				y -= 15;
-			Vip(Esp.index, x, y, w);
-		}
-	}
-	for (playeresp_t Esp : PlayerEsp)
-	{
-		if (!Esp.dummy)
-			continue;
-
-		float x, y, w, h, xo, yo;
-		if (bCalcScreen(Esp, x, y, w, h, xo, yo))
-		{
-			Box(x, y, w, h, Wheel1());
-			HealthDummy(x, y, h);
-			if (ReloadDummy(xo, y, Wheel1(), Green()))
-				y -= 15, h += 15;
-			if (NameDummy(xo, y, Wheel1(), White()))
-				y -= 15, h += 15;
-			if (ModelDummy(xo, y, Wheel1(), White()))
-				y -= 15, h += 15;
-			if (WeaponDummy(xo, y, Wheel1(), White()))
-				y -= 15, h += 15;
-			if (VipDummy(x, y, w))
-				y -= IM_ROUND(w / 2), h += IM_ROUND(w / 2);
-
-			espxo = x + IM_ROUND(w / 2);
-			espyo = y + IM_ROUND(h / 2);
-
-			if (x > model_pos_x + 11 && x + w < model_pos_x + modelscreenw - 11 &&
-				y > model_pos_y + 11 && y + h < model_pos_y + modelscreenh - 11)
-			{
-				float result;
-				float out[4];
-				out[0] = x - (model_pos_x + 11);
-				out[1] = y - (model_pos_y + 11);
-				out[2] = model_pos_x + (modelscreenw - 11) - (x + w);
-				out[3] = model_pos_y + (modelscreenh - 11) - (y + h);
-				result = out[0];
-				for (unsigned int i = 0; i < 4; i++)
-					result = min(result, out[i]);
-				modelscale += 0.0005f * result * (modelscale < 1? modelscale:1);
-			}
-			if (x < model_pos_x + 9 || x + w > model_pos_x + modelscreenw - 9 ||
-				y < model_pos_y + 9 || y + h > model_pos_y + modelscreenh - 9)
-			{
-
-				float result;
-				float out[4];
-				if (x < model_pos_x + 9)
-					out[0] = (model_pos_x + 9) - x;
-				else
-					out[0] = 0;
-				if (y < model_pos_y + 9)
-					out[1] = (model_pos_y + 9) - y;
-				else
-					out[1] = 0;
-				if (x + w > model_pos_x + modelscreenw - 9)
-					out[2] = (x + w) - (model_pos_x + (modelscreenw - 9));
-				else
-					out[2] = 0;
-				if (y + h > model_pos_y + modelscreenh - 9)
-					out[3] = (y + h) - (model_pos_y + (modelscreenh - 9));
-				else
-					out[3] = 0;
-				result = out[0];
-				for (unsigned int i = 0; i < 4; i++)
-					result = max(result, out[i]);
-				if (modelscale - 0.0005f * result > 0)
-					modelscale -= 0.0005f * result * modelscale;
-				else if (modelscale - 0.00005f * result > 0)
-					modelscale -= 0.00005f * result * modelscale;
-				else if (modelscale - 0.000005f * result > 0)
-					modelscale -= 0.000005f * result * modelscale;
-				else if (modelscale - 0.0000005f * result > 0)
-					modelscale -= 0.0000005f * result * modelscale;
-				else if (modelscale - 0.00000005f * result > 0)
-					modelscale -= 0.00000005f * result * modelscale;
-				else if (modelscale - 0.00000001f * result > 0)
-					modelscale -= 0.00000001f * result * modelscale;
-				else if (modelscale - 0.000000001f * result > 0)
-					modelscale -= 0.000000001f * result * modelscale;
-				else if (modelscale - 0.0000000001f * result > 0)
-					modelscale -= 0.0000000001f * result * modelscale;
-			}
-
-			float screenx = model_pos_x + IM_ROUND(modelscreenw / 2);
-			if (screenx > espxo + 2)
-			{
-				float size = IM_ROUND((screenx - espxo + 2) * (modelscale < 1 ? modelscale : 1));
-				dummywidth += size > 1 ? size : 1;
-			}
-
-			if (screenx < espxo - 2)
-			{
-				float size = IM_ROUND((espxo - 2 - screenx) * (modelscale < 1 ? modelscale : 1));
-				dummywidth -= size > 1 ? size : 1;
-			}
-
-			float screeny = model_pos_y + IM_ROUND(modelscreenh / 2);
-			if (screeny > espyo + 2)
-			{
-				float size = IM_ROUND((screeny - espyo + 2) * (modelscale < 1 ? modelscale : 1));
-				dummyheight += size > 1 ? size : 1;
-			}
-
-			if (screeny < espyo - 2)
-			{
-				float size = IM_ROUND((espyo - 2 - screeny) * (modelscale < 1 ? modelscale : 1));
-				dummyheight -= size > 1 ? size : 1;
-			}
-		}
-		else
-		{
-			dummyheight = 0;
-			dummywidth = 0;
-			modelscale = 0.01f;
-		}
+		else if(!pEnt)
+			break;
 	}
 }
 
-void BoxWorld(float x, float y, float w, float h, ImU32 white)
-{
-	if (!cvar.visual_box_world) return;
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x, y }, { x + w, y + h }, white);
-}
+//**********************************************************************************************************************************
 
-bool NameWorld(int id, float x, float y, ImU32 team, ImU32 white)
+void PlayerEsp()
 {
-	if (id < 1 || id > g_Engine.GetMaxClients())
-		return false;
-	if (!cvar.visual_name_world) return false;
-	player_info_s* player = g_Studio.PlayerInfo(id - 1);
-	if (!player || !(lstrlenA(player->name) > 0)) return false;
-	char str[256];
-	sprintf(str, "Owner: %s", player->name);
-	float label_size = IM_ROUND(ImGui::CalcTextSize(str, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, team);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, str);
-	return true;
-}
-
-bool NameWorldDummy(float x, float y, ImU32 Wheel, ImU32 white)
-{
-	if (!cvar.visual_name_world) return false;
-	char str[256];
-	sprintf(str, "Owner: Name");
-	float label_size = IM_ROUND(ImGui::CalcTextSize(str, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, Wheel);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, str);
-	return true;
-}
-
-void ModelWorld(char* name, float x, float y, ImU32 white)
-{
-	if (!cvar.visual_model_world) return;
-	float label_size = IM_ROUND(ImGui::CalcTextSize(name, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, white);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, name);
-}
-
-bool ModelWorldDummy(float x, float y, ImU32 white)
-{
-	if (!cvar.visual_model_world) return false;
-	char str[256];
-	sprintf(str, "Model");
-	float label_size = IM_ROUND(ImGui::CalcTextSize(str, NULL, true).x / 2);
-	ImGui::GetCurrentWindow()->DrawList->AddRect({ x - label_size - 2, y - 15 }, { x + label_size + 3 , y - 1 }, white);
-	ImGui::GetCurrentWindow()->DrawList->AddText({ x - label_size, y - 16 }, white, str);
-	return true;
-}
-
-bool bCalcScreenWorld(worldesp_t Esp, float& x, float& y, float& w, float& h, float& xo, float& yo)
-{
-	float vOrigin[2];
-	if (WorldToScreen(Esp.origin, vOrigin))
+	for(int i = 0; i < 33; i++)
 	{
-		xo = IM_ROUND(vOrigin[0]);
-		yo = IM_ROUND(vOrigin[1]);
-		float x0 = vOrigin[0], x1 = vOrigin[0], y0 = vOrigin[1], y1 = vOrigin[1];
-		for (esphitbox_t Hitbox : Esp.WorldEspHitbox)
+		ColorEntry* color = PlayerColor(i);
+		ColorEntry* yellow = colorList.get(27);
+
+		cl_entity_t *pLocal = GetLocalPlayer(); 
+		if(i == pLocal->index) continue;
+
+		cl_entity_s *ent = GetEntityByIndex(i);
+		cl_entity_s *pEnt = IEngineStudio.GetCurrentEntity();
+
+		if(ent != NULL &&  bIsValidEnt(ent))
 		{
-			for (unsigned int i = 0; i < 8; i++)
+			float VecScreen[2];
+
+			if(CalcScreen(ent->origin,VecScreen))
 			{
-				float vHitbox[2];
-				if (WorldToScreen(Hitbox.HitboxMulti[i], vHitbox))
+				if(cvar.miniradar)
 				{
-					x0 = min(x0, vHitbox[0]);
-					x1 = max(x1, vHitbox[0]);
-					y0 = min(y0, vHitbox[1]);
-					y1 = max(y1, vHitbox[1]);
+					if( cvar.espteam || isEnemy(i))
+					{
+						drawMiniRadarPoint(ent->origin,color->r,color->g,color->b,3,3,false);
+					}
+				}
+
+				if(cvar.radar)
+				{
+					if( cvar.espteam || isEnemy(i))
+					{
+						drawRadarPoint(ent->origin,color->r,color->g,color->b,3,3,false);
+					}
+				}
+
+				float distance = vPlayers[i].distance/22.0f;
+				extern float fCurrentFOV;
+				int   boxradius = (300.0*90.0) / (distance*fCurrentFOV);	 
+				BOUND_VALUE(boxradius,1,200);
+				int text_dist = (int)(boxradius);
+
+				float distancebox = vPlayers[i].distance/22.0f;
+				extern float fCurrentFOVbox;
+				int   boxradiusbox = (300.0*90.0) / (distancebox*fCurrentFOVbox);	 
+				BOUND_VALUE(boxradiusbox,1,000);
+				int text_distbox = (int)(boxradiusbox);
+
+				enum{ CHAR_HEIGHT = 13 }; 
+				int ystep = CHAR_HEIGHT;
+
+				int x = VecScreen[0];
+				int y = VecScreen[1]-text_dist-CHAR_HEIGHT; 
+				y = y-text_dist-CHAR_HEIGHT; 
+			
+				y-=12;
+				
+/*				if(!cvar.rush && cvar.esp_box2d)
+				{
+					if(cvar.espteam || isEnemy(i))
+					{
+						Draw2DBox(pEnt,ent->origin,text_distbox,color); // box 2d
+					}
+				}
+				
+				if(!cvar.rush && cvar.esp_box3d)
+				{
+					if(cvar.espteam || isEnemy(i))
+					{
+						if(ent->curstate.sequence == 99 || ent->curstate.sequence == 100)
+							Draw3DBox(ent,ent->origin,text_distbox,yellow);
+						else
+							Draw3DBox(ent,ent->origin,text_distbox,color);
+					}
+				}
+				
+				if(!cvar.rush && cvar.esp_box3ds && cvar.cheatmode == 1)
+				{
+					if (g_Aimbot.iTargetID!=0)
+					{
+						if(cvar.espteam || isEnemy(i))
+						{
+							if(ent->curstate.sequence == 99 || ent->curstate.sequence == 100)
+								Draw3DBoxSpinn(ent,ent->origin,text_distbox,yellow);
+							else
+								Draw3DBoxSpinn(ent,ent->origin,text_distbox,color);
+						}
+					}
+				}*/
+
+	            if(!cvar.rush && cvar.weapon==1 || (cvar.weapon==2 && idhook.FirstKillPlayer[i]))
+				{
+					if(cvar.espteam || isEnemy(i))
+					{
+						DrawHudStringCenter(x, y, color->r, color->g, color->b, "%s",gGetWeaponName(ent->curstate.weaponmodel)); 
+						y -= ystep;
+					}
+				}
+
+				if(!cvar.rush && cvar.name==1 || (cvar.name==2 && idhook.FirstKillPlayer[i]))
+				{
+					if(cvar.espteam || isEnemy(i))
+					{
+						hud_player_info_t pinfo;
+						GetPlayerInfo(i, &pinfo);
+						char buf[1024];
+						sprintf(buf,"%s",pinfo.name);
+						DrawHudStringCenter(x, y, color->r, color->g, color->b, buf);
+						y -= ystep;
+					}
+				}
+				if(!cvar.rush && cvar.sequence==1 || (cvar.sequence==2 && idhook.FirstKillPlayer[i]))
+				{
+					if(cvar.espteam || isEnemy(i))
+					{
+						int atype = getSeqInfo(i);
+						if (ent->curstate.gaitsequence==GAITSEQUENCE_RUNNING) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- RUNNING -");
+							y -= ystep;
+						}
+						if (ent->curstate.gaitsequence==GAITSEQUENCE_STAND) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- STANDING -");
+							y -= ystep;
+						}
+						if (ent->curstate.gaitsequence==GAITSEQUENCE_DUCK) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- DUCKING -");
+							y -= ystep;
+						}
+						if (ent->curstate.gaitsequence==GAITSEQUENCE_WALK) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- WALKING -");
+							y -= ystep;
+						}
+						if (ent->curstate.gaitsequence==GAITSEQUENCE_DUCKMOVE) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- DUCKMOVING -");
+							y -= ystep;
+						}
+						if (ent->curstate.gaitsequence==GAITSEQUENCE_JUMP) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- JUMPING -");
+							y -= ystep;
+						}
+						if (ent->curstate.sequence == 99 || ent->curstate.sequence == 100)
+						{
+							oglSubtractive=true;
+							gEngfuncs.pfnFillRGBA(x-31,y+4,64,14,yellow->r,yellow->g,yellow->b,yellow->a);
+							oglSubtractive=false;
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"-- HIT --");
+							y -= ystep;
+						}
+						if(atype == 8)
+						{
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- THROWING -");
+							y -= ystep;
+						}
+						if(atype == 32)
+						{
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- SHIELD TO SIDE -");
+							y -= ystep;
+						}
+						if(atype == 64)
+						{
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- SHIELDED -");
+							y -= ystep;
+						}
+						if(atype == 1)
+						{
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- SHOOTING -");
+							y -= ystep;
+						}
+						if( atype == 2)
+						{
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- RELOADING -");
+							y -= ystep;
+						}
+						if (atype==5 || atype== 16) 
+						{ 
+							DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- PLANTING c4 -");
+							y -= ystep;
+						}
+					}
+				}
+
+				if(!cvar.rush && cvar.reloadmeter) 
+				{
+					if(cvar.espteam || isEnemy(i))
+        			{
+						int seqinfo = Cstrike_SequenceInfo[ent->curstate.sequence];
+						if( seqinfo == 2)
+						{
+							oglSubtractive=true;
+    						gEngfuncs.pfnFillRGBA(x-26,y+1,53,12,0,0,0,250);
+    						oglSubtractive=false;
+    						gEngfuncs.pfnFillRGBA(x-25,y+2,(ent->curstate.frame/255)*50,10,0,255,0,255);
+    						y-=ystep;
+						}
+						else if( seqinfo == 16)
+						{
+    						oglSubtractive=true;
+    						gEngfuncs.pfnFillRGBA(x-26,y+1,53,12,0,0,0,250);
+    						oglSubtractive=false;
+    						gEngfuncs.pfnFillRGBA(x-25,y+2,(ent->curstate.frame/255)*101,10,255,255,0,255);
+    						y-=ystep;
+						}
+					}
+				}
+
+				if(!cvar.rush && cvar.playerinfo)
+				{
+					if(vPlayers[i].hasbomb)
+					{
+						DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"-Bomb Carrier-");
+						y -= ystep;
+					}
+					if(vPlayers[i].vip)
+					{
+						DrawHudStringCenter(x,y,yellow->r,yellow->g,yellow->b,"-VIP-");
+						y -= ystep;
+					}
+				}
+
+/*				if(!cvar.rush && cvar.esp_line)
+				{
+					if(cvar.espteam || isEnemy(i))
+					{
+						DrawLines(displayCenterX,0,x,y,1,color->r,color->g,color->b,color->a);
+						y -= ystep * 2;
+					}
+				}*/
+			}
+		}
+	}
+}
+
+//********************************************************************************************************************************** 
+
+void drawPlayerEsp(int ax)
+{
+
+	cl_entity_s *pEnt=gEngfuncs.GetEntityByIndex(ax); 
+
+	cl_entity_s *pEnt2d=IEngineStudio.GetCurrentEntity();
+
+	ColorEntry* color = PlayerColor(ax);
+	ColorEntry* yellow = colorList.get(27);
+
+	float vecScreen[2];
+
+	const char* format_string; 
+	const char* format_int;
+	if (vPlayers[ax].visible) { format_string="%s";format_int="%i"; }
+	else                      { format_string="%s";format_int="%i"; }
+
+	float distance = vPlayers[ax].distance/22.0f;
+	extern float fCurrentFOV;
+	int   boxradius = (300.0*90.0) / (distance*fCurrentFOV);	 
+	BOUND_VALUE(boxradius,1,200);
+	int text_dist = (int)(boxradius);
+
+	float distancebox = vPlayers[ax].distance/22.0f;
+	extern float fCurrentFOVbox;
+	int   boxradiusbox = (300.0*90.0) / (distancebox*fCurrentFOVbox);	 
+	BOUND_VALUE(boxradiusbox,1,000);
+	int text_distbox = (int)(boxradiusbox);
+
+	if(cvar.miniradar)
+	{
+		if( cvar.espteam || isEnemy(ax))
+		{
+			drawMiniRadarPoint(vPlayers[ax].origin(),color->r,color->g,color->b,3,3,false);
+		}
+	}
+
+	if(cvar.radar)
+	{
+		if( cvar.espteam || isEnemy(ax))
+		{
+			drawRadarPoint(vPlayers[ax].origin(),color->r,color->g,color->b,3,3,false);
+		}
+	}
+
+
+	if( !CalcScreen(vPlayers[ax].origin(),vecScreen) ){ return; } 
+	
+	enum{ CHAR_HEIGHT = 13 }; 
+	int ystep = CHAR_HEIGHT;
+
+	int x = vecScreen[0];
+	int y = vecScreen[1]-text_dist-CHAR_HEIGHT; 
+	y = y-text_dist-CHAR_HEIGHT; 
+	y-=12;
+
+	/////////////////////////////////////////
+
+/*	if(!cvar.rush && cvar.esp_box2d)
+	{
+		if(bIsValidEnt(ax))
+		{	
+			if(cvar.espteam || isEnemy(ax))
+			{
+				Draw2DBox(pEnt2d,vPlayers[ax].getEnt()->origin,text_distbox,color); // box 2d
+			}
+		}
+	}
+
+	if(!cvar.rush && cvar.esp_box3d)
+	{
+		if(bIsValidEnt(ax))
+		{
+			if(cvar.espteam || isEnemy(ax))
+			{
+				if(vPlayers[ax].getEnt()->curstate.sequence == 99 || vPlayers[ax].getEnt()->curstate.sequence == 100)
+					Draw3DBox(pEnt,vPlayers[ax].getEnt()->origin,text_distbox,yellow);
+				else
+					Draw3DBox(pEnt,vPlayers[ax].getEnt()->origin,text_distbox,color);
+			}
+		}
+	}
+
+	if(!cvar.rush && cvar.esp_box3ds && cvar.cheatmode == 1)
+	{
+		if (g_Aimbot.iTargetID!=0)
+		{
+			if(cvar.espteam || isEnemy(ax))
+			{
+				if(vPlayers[ax].getEnt()->curstate.sequence == 99 || vPlayers[ax].getEnt()->curstate.sequence == 100)
+					Draw3DBoxSpinn(pEnt,vPlayers[ax].getEnt()->origin,text_distbox,yellow);
+				else
+					Draw3DBoxSpinn(pEnt,vPlayers[ax].getEnt()->origin,text_distbox,color);
+			}
+		}
+	}*/
+
+	if(!cvar.rush && cvar.weapon==1 || (cvar.weapon==2 && idhook.FirstKillPlayer[ax]))
+	{
+	   	if(cvar.espteam || isEnemy(ax))
+       	{
+			const char* displayname = vPlayers[ax].getWeapon();
+			DrawConStringCenter(x,y,color->r,color->g,color->b,displayname);
+			y -= ystep;
+		}
+	}
+
+	if (!cvar.rush && cvar.name==1 || (cvar.name==2 && idhook.FirstKillPlayer[ax]))
+	{
+	   if(cvar.espteam || isEnemy(ax))
+       {
+		   char displayname[32];
+		   strncpy(displayname,vPlayers[ax].entinfo.name,30);
+		   displayname[30] = 0;
+		   DrawConStringCenter(x,y,color->r,color->g,color->b,format_string,displayname);
+		   y -= ystep;
+	   }
+	}
+
+	if (!cvar.rush && cvar.sequence==1 || (cvar.sequence==2 && idhook.FirstKillPlayer[ax]))
+	{
+		if(bIsValidEnt(ax))
+		{
+			if(cvar.espteam || isEnemy(ax))
+			{
+				int atype = getSeqInfo(ax);
+				if (vPlayers[ax].getEnt()->curstate.gaitsequence==GAITSEQUENCE_RUNNING) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- RUNNING -");
+					y -= ystep;
+				}
+				if (vPlayers[ax].getEnt()->curstate.gaitsequence==GAITSEQUENCE_STAND) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- STANDING -");
+					y -= ystep;
+				}
+				if (vPlayers[ax].getEnt()->curstate.gaitsequence==GAITSEQUENCE_DUCK) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- DUCKING -");
+					y -= ystep;
+				}
+				if (vPlayers[ax].getEnt()->curstate.gaitsequence==GAITSEQUENCE_WALK) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- WALKING -");
+					y -= ystep;
+				}
+				if (vPlayers[ax].getEnt()->curstate.gaitsequence==GAITSEQUENCE_DUCKMOVE) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- DUCKMOVING -");
+					y -= ystep;
+				}
+				if (vPlayers[ax].getEnt()->curstate.gaitsequence==GAITSEQUENCE_JUMP) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- JUMPING -");
+					y -= ystep;
+				}
+				if(vPlayers[ax].getEnt()->curstate.sequence == 99 || vPlayers[ax].getEnt()->curstate.sequence == 100)
+				{
+					oglSubtractive=true;
+					gEngfuncs.pfnFillRGBA(x-31,y+4,64,14,yellow->r,yellow->g,yellow->b,yellow->a);
+					oglSubtractive=false;
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"-- HIT --");
+					y -= ystep;
+				}
+				if(atype == 8)
+				{
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- THROWING -");
+					y -= ystep;
+				}
+				if(atype == 32)
+				{
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- SHIELD TO SIDE -");
+					y -= ystep;
+				}
+				if(atype == 64)
+				{
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- SHIELDED -");
+					y -= ystep;
+				}
+				if(atype == 1)
+				{
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- SHOOTING -");
+					y -= ystep;
+				}
+				if( atype == 2)
+				{
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- RELOADING -");
+					y -= ystep;
+				}
+				if (atype==5 || atype== 16) 
+				{ 
+					DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"- PLANTING c4 -");
+					y -= ystep;
 				}
 			}
 		}
-		x = IM_ROUND(x0);
-		y = IM_ROUND(y0);
-		w = IM_ROUND(x1) - IM_ROUND(x0) + 1;
-		h = IM_ROUND(y1) - IM_ROUND(y0) + 1;
-		return true;
 	}
-	return false;
-}
 
-bool bCalcScreenWorldPrev(worldespprev_t Esp, float& x, float& y, float& w, float& h, float& xo, float& yo)
-{
-	float vOrigin[2];
-	if (WorldToScreen(Esp.origin, vOrigin))
+	if (!cvar.rush && cvar.reloadmeter) 
 	{
-		xo = IM_ROUND(vOrigin[0]);
-		yo = IM_ROUND(vOrigin[1]);
-		float x0 = vOrigin[0], x1 = vOrigin[0], y0 = vOrigin[1], y1 = vOrigin[1];
-		for (esphitbox_t Hitbox : Esp.WorldEspHitbox)
+		if(bIsValidEnt(ax))
 		{
-			for (unsigned int i = 0; i < 8; i++)
-			{
-				float vHitbox[2];
-				if (WorldToScreen(Hitbox.HitboxMulti[i], vHitbox))
+			if(cvar.espteam || isEnemy(ax))
+        	{
+				int seqinfo = Cstrike_SequenceInfo[vPlayers[ax].getEnt()->curstate.sequence];
+				if( seqinfo == 2)
 				{
-					x0 = min(x0, vHitbox[0]);
-					x1 = max(x1, vHitbox[0]);
-					y0 = min(y0, vHitbox[1]);
-					y1 = max(y1, vHitbox[1]);
+					oglSubtractive=true;
+    				gEngfuncs.pfnFillRGBA(x-26,y+1,53,12,0,0,0,250);
+    				oglSubtractive=false;
+    				gEngfuncs.pfnFillRGBA(x-25,y+2,(vPlayers[ax].getEnt()->curstate.frame/255)*50,10,0,255,0,255);
+    				y-=ystep;
+				}
+				else if( seqinfo == 16)
+				{
+    				oglSubtractive=true;
+    				gEngfuncs.pfnFillRGBA(x-26,y+1,53,12,0,0,0,250);
+    				oglSubtractive=false;
+    				gEngfuncs.pfnFillRGBA(x-25,y+2,(vPlayers[ax].getEnt()->curstate.frame/255)*101,10,255,255,0,255);
+    				y-=ystep;
 				}
 			}
 		}
-		for (espbone_t Bone : Esp.WorldEspBone)
-		{
-			float vBone[2];
-			if (WorldToScreen(Bone.Bone, vBone))
-			{
-				x0 = min(x0, vBone[0]);
-				x1 = max(x1, vBone[0]);
-				y0 = min(y0, vBone[1]);
-				y1 = max(y1, vBone[1]);
-			}
-		}
-		x = IM_ROUND(x0);
-		y = IM_ROUND(y0);
-		w = IM_ROUND(x1) - IM_ROUND(x0) + 1;
-		h = IM_ROUND(y1) - IM_ROUND(y0) + 1;
-		return true;
 	}
-	return false;
+
+	if(!cvar.rush && cvar.playerinfo)
+	{
+		if(vPlayers[ax].hasbomb)
+		{
+			DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"-Bomb Carrier-");
+			y -= ystep;
+		}
+		if(vPlayers[ax].vip)
+		{
+			DrawConStringCenter(x,y,yellow->r,yellow->g,yellow->b,"-VIP-");
+			y -= ystep;
+		}
+	}
+
+/*	if (!cvar.rush && cvar.esp_line)
+	{
+	   if(cvar.espteam || isEnemy(ax))
+       { 
+		   if(vPlayers[ax].getEnt()->curstate.sequence == 99 || vPlayers[ax].getEnt()->curstate.sequence == 100)
+			   DrawFillTriangle(x,y-text_dist,x-text_dist,y,x+text_dist,y,yellow->r,yellow->g,yellow->b,yellow->a);
+		   else
+			   DrawFillTriangle(x,y,x-text_dist,y-text_dist,x+text_dist,y-text_dist,color->r,color->g,color->b,color->a);
+		   DrawLines(displayCenterX,0,x,y,1,color->r,color->g,color->b,color->a);
+		   y -= ystep * 2;
+	   }
+	}*/
 }
 
-void DrawWorldEsp()
+//********************************************************************************************************************************** 
+
+void drawesp()
 {
-	for (worldesp_t Esp : WorldEsp)
+	if(cvar.entesp)
+		DrawEntEsp();
+
+	if(!cvar.esptype)
+		PlayerEsp();
+
+	if(cvar.esptype) //soundesp
 	{
-		float x, y, w, h, xo, yo;
-		if (bCalcScreenWorld(Esp, x, y, w, h, xo, yo))
-		{
-			BoxWorld(x, y, w, h, White());
-			if (NameWorld(Esp.index, xo, y, Team(Esp.index), White()))
-				y -= 15;
-			ModelWorld(Esp.name, xo, y, White());
-		}
-	}
-	for (worldespprev_t Esp : WorldEspPrev)
-	{
-		float x, y, w, h, xo, yo;
-		if (bCalcScreenWorldPrev(Esp, x, y, w, h, xo, yo))
-		{
-			BoxWorld(x, y, w, h, White());
-			if (NameWorldDummy(xo, y, Wheel1(), White()))
-				y -= 15, h += 15;
-			if (ModelWorldDummy(xo, y, White()))
-				y -= 15, h += 15;
-
-			espxo = x + IM_ROUND(w / 2);
-			espyo = y + IM_ROUND(h / 2);
-
-			if (x > model_pos_x + 11 && x + w < model_pos_x + modelscreenw - 11 &&
-				y > model_pos_y + 11 && y + h < model_pos_y + modelscreenh - 11)
+		for(int ax=0;ax<vPlayers.size();ax++)
+			if(vPlayers[ax].isUpdated() && vPlayers[ax].getAlive())
 			{
-				float result;
-				float out[4];
-				out[0] = x - (model_pos_x + 11);
-				out[1] = y - (model_pos_y + 11);
-				out[2] = model_pos_x + (modelscreenw - 11) - (x + w);
-				out[3] = model_pos_y + (modelscreenh - 11) - (y + h);
-				result = out[0];
-				for (unsigned int i = 0; i < 4; i++)
-					result = min(result, out[i]);
-				modelscale += 0.0005f * result * (modelscale < 1 ? modelscale : 1);
+				drawPlayerEsp(ax);
+				vPlayers[ax].SuspectNextOrigin();
 			}
-			if (x < model_pos_x + 9 || x + w > model_pos_x + modelscreenw - 9 ||
-				y < model_pos_y + 9 || y + h > model_pos_y + modelscreenh - 9)
-			{
-
-				float result;
-				float out[4];
-				if (x < model_pos_x + 9)
-					out[0] = (model_pos_x + 9) - x;
-				else
-					out[0] = 0;
-				if (y < model_pos_y + 9)
-					out[1] = (model_pos_y + 9) - y;
-				else
-					out[1] = 0;
-				if (x + w > model_pos_x + modelscreenw - 9)
-					out[2] = (x + w) - (model_pos_x + (modelscreenw - 9));
-				else
-					out[2] = 0;
-				if (y + h > model_pos_y + modelscreenh - 9)
-					out[3] = (y + h) - (model_pos_y + (modelscreenh - 9));
-				else
-					out[3] = 0;
-				result = out[0];
-				for (unsigned int i = 0; i < 4; i++)
-					result = max(result, out[i]);
-				for (unsigned int i = 0; i < 4; i++)
-					result = max(result, out[i]);
-				if (modelscale - 0.0005f * result > 0)
-					modelscale -= 0.0005f * result * modelscale;
-				else if (modelscale - 0.00005f * result > 0)
-					modelscale -= 0.00005f * result * modelscale;
-				else if (modelscale - 0.000005f * result > 0)
-					modelscale -= 0.000005f * result * modelscale;
-				else if (modelscale - 0.0000005f * result > 0)
-					modelscale -= 0.0000005f * result * modelscale;
-				else if (modelscale - 0.00000005f * result > 0)
-					modelscale -= 0.00000005f * result * modelscale;
-				else if (modelscale - 0.00000001f * result > 0)
-					modelscale -= 0.00000001f * result * modelscale;
-				else if (modelscale - 0.000000001f * result > 0)
-					modelscale -= 0.000000001f * result * modelscale;
-				else if (modelscale - 0.0000000001f * result > 0)
-					modelscale -= 0.0000000001f * result * modelscale;
-			}
-
-			float screenx = model_pos_x + IM_ROUND(modelscreenw / 2);
-			if (screenx > espxo + 2)
-			{
-				float size = IM_ROUND((screenx - espxo + 2) * (modelscale < 1 ? modelscale : 1));
-				dummywidth += size > 1 ? size : 1;
-			}
-
-			if (screenx < espxo - 2)
-			{
-				float size = IM_ROUND((espxo - 2 - screenx) * (modelscale < 1 ? modelscale : 1));
-				dummywidth -= size > 1 ? size : 1;
-			}
-
-			float screeny = model_pos_y + IM_ROUND(modelscreenh / 2);
-			if (screeny > espyo + 2)
-			{
-				float size = IM_ROUND((screeny - espyo + 2) * (modelscale < 1 ? modelscale : 1));
-				dummyheight += size > 1 ? size : 1;
-			}
-
-			if (screeny < espyo - 2)
-			{
-				float size = IM_ROUND((espyo - 2 - screeny) * (modelscale < 1 ? modelscale : 1));
-				dummyheight -= size > 1 ? size : 1;
-			}
-		}
-		else
-		{
-			dummyheight = 0;
-			dummywidth = 0;
-			modelscale = 0.01f;
-		}
-	}
-}
-
-void DrawPlayerSoundIndexEsp()
-{
-	for (player_sound_index_t sound_index : Sound_Index)
-	{
-		cl_entity_s* ent = g_Engine.GetEntityByIndex(sound_index.index);
-		if (!ent)
-			continue;
-		if (cvar.visual_idhook_only && idhook.FirstKillPlayer[sound_index.index] != 1)
-			continue;
-		if (!cvar.visual_visual_team && g_Player[sound_index.index].iTeam == g_Local.iTeam)
-			continue;
-
-		if (cvar.visual_sound_steps)
-		{
-			float step = M_PI * 2.0f / 15;
-			float radius = 13.0f * (1200 - (GetTickCount() - sound_index.timestamp)) / 1200;
-			Vector position = Vector(sound_index.origin.x, sound_index.origin.y, sound_index.origin.z - 36);
-			for (float i = 0; i < (IM_PI * 2.0f); i += step)
-			{
-				Vector vPointStart(radius * cosf(i) + position.x, radius * sinf(i) + position.y, position.z);
-				Vector vPointEnd(radius * cosf(i + step) + position.x, radius * sinf(i + step) + position.y, position.z);
-				float vStart[2], vEnd[2];
-				if (WorldToScreen(vPointStart, vStart) && WorldToScreen(vPointEnd, vEnd))
-					ImGui::GetCurrentWindow()->DrawList->AddLine({ IM_ROUND(vStart[0]), IM_ROUND(vStart[1]) }, { IM_ROUND(vEnd[0]), IM_ROUND(vEnd[1]) }, Team(sound_index.index));
-			}
-		}
-		if (ent->curstate.messagenum == g_Engine.GetEntityByIndex(pmove->player_index + 1)->curstate.messagenum)
-			continue;
-		if (GetTickCount() - sound_index.timestamp > 300)
-			continue;
-
-		Vector vPointTop = Vector(sound_index.origin.x, sound_index.origin.y, sound_index.origin.z + 10);
-		Vector vPointBot = Vector(sound_index.origin.x, sound_index.origin.y, sound_index.origin.z - 10);
-
-		float vTop[2], vBot[2];
-		if (WorldToScreen(vPointTop, vTop) && WorldToScreen(vPointBot, vBot))
-		{
-			float h = IM_ROUND(vBot[1]) - IM_ROUND(vTop[1]), w = h, x = IM_ROUND(vTop[0]) - IM_ROUND(w / 2), y = IM_ROUND(vTop[1]), xo = IM_ROUND(vTop[0]);
-			Box(x, y, w, h, Team(sound_index.index));
-			Health(sound_index.index, x, y, h);
-			if (Name(sound_index.index, xo, y, Team(sound_index.index), White()))
-				y -= 15;
-			Vip(sound_index.index, x, y, w);
-		}
-	}
-}
-
-void DrawPlayerSoundNoIndexEsp()
-{
-	for (player_sound_no_index_t sound_no_index : Sound_No_Index)
-	{
-		if (cvar.visual_sound_steps)
-		{
-			float step = IM_PI * 2.0f / 15;
-			float radius = 13.0f * (1200 - (GetTickCount() - sound_no_index.timestamp)) / 1200;
-			Vector position = Vector(sound_no_index.origin.x, sound_no_index.origin.y, sound_no_index.origin.z - 36);
-			for (float i = 0; i < (IM_PI * 2.0f); i += step)
-			{
-				Vector vPointStart(radius * cosf(i) + position.x, radius * sinf(i) + position.y, position.z);
-				Vector vPointEnd(radius * cosf(i + step) + position.x, radius * sinf(i + step) + position.y, position.z);
-				float vStart[2], vEnd[2];
-				if (WorldToScreen(vPointStart, vStart) && WorldToScreen(vPointEnd, vEnd))
-					ImGui::GetCurrentWindow()->DrawList->AddLine({ IM_ROUND(vStart[0]), IM_ROUND(vStart[1]) }, { IM_ROUND(vEnd[0]), IM_ROUND(vEnd[1]) }, Green());
-			}
-		}
-		if (GetTickCount() - sound_no_index.timestamp > 300)
-			continue;
-
-		Vector vPointTop = Vector(sound_no_index.origin.x, sound_no_index.origin.y, sound_no_index.origin.z + 10);
-		Vector vPointBot = Vector(sound_no_index.origin.x, sound_no_index.origin.y, sound_no_index.origin.z - 10);
-
-		float vTop[2], vBot[2];
-		if (WorldToScreen(vPointTop, vTop) && WorldToScreen(vPointBot, vBot))
-		{
-			Box(IM_ROUND(vTop[0]) - IM_ROUND((IM_ROUND(vBot[1]) - IM_ROUND(vTop[1])) / 2), IM_ROUND(vTop[1]), IM_ROUND(vBot[1]) - IM_ROUND(vTop[1]), IM_ROUND(vBot[1]) - IM_ROUND(vTop[1]), Green());
-		}
 	}
 }

@@ -1,0 +1,18 @@
+/////
+///// CBOBY V2 [Revision by ETK]
+/////
+///// By [boy_scout][boyscout_etk@hotmail.com]
+/////
+///// [2011][www.etalking.com.ar]
+/////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#ifndef PLAYERS_H
+#define PLAYERS_H
+
+#include "client.h"
+
+bool bIsValidEnt(struct cl_entity_s *ent);
+bool bIsValidEnt(int iIndex);
+bool isEnemy(int ax);
+#endif
